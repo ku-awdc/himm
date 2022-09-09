@@ -1,0 +1,29 @@
+Package: himm
+Title: Hidden Integrated Markov Models in R and JAGS
+Date: 2022-09-09
+Version: 0.1.0-1
+Authors@R: 
+    c(
+      person("Matt", "Denwood", email="md@sund.ku.dk", role = c("aut", "cre")),
+      person(c("Maj", "Beldring"), "Henningsen", email="majbh@sund.ku.dk", role = c("aut"))
+    )
+Description: What the package does (one paragraph).
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.0
+SystemRequirements: JAGS >= 4.3.0 (https://mcmc-jags.sourceforge.io/)
+Imports:
+    rjags,
+    Rcpp
+LinkingTo: 
+    Rcpp
+Suggests: 
+    runjags,
+    knitr,
+    rmarkdown,
+    spelling,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+Language: en-GB
