@@ -1,0 +1,225 @@
+---
+title: "latent_states"
+author: "Matt Denwood"
+date: '2022-04-01'
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Integrating out latent states of a HMM
+
+## The problem
+
+Let's say that we have a matrix of cow-level binary observations at fixed time points (for example, mastitis based on comparison of monthly SCC to some threshold) as follows:
+
+```{r}
+obs <- matrix(c(0, 1, 1, 0, 0,
+                1, 1, 0, 0, 0,
+                0, 0, 0, 0, 0,
+                1, 1, 1, 0, 1), ncol=5, byrow=TRUE)
+```
+
+Each row represents an animal, and each column a time point.  We will assume for now that the time points are equally spaced, but this could alternatively be a list of paired vectors of observations and time points for each animal.
+
+We wish to fit a HMM to this data so that we are able to estimate the following parameters:
+
+- p0:  starting prevalence
+
+- b:  probability of going from state 0 at time=t-1 to state 1 at time=t, conditional on the proportion of other animals with state 1 at time t=t-1 (this is true state, not observed state)
+
+- g:  probability of going from state 1 at time=t-1 to state 0 at time=t (again, this is true state, not observed state)
+
+The usual approach to solving this is to include the matrix of true states as variables to be estimated. This introduces computational complexity that is not necessary if estimates for these variables are not required.
+
+Mathematically, we usually calculate the likelihood:
+
+p(y | x, z)
+
+but would prefer:
+
+p(y | x) = integrate_over_z( p(y | x, z) * p(z | x) )
+
+where:
+
+- y:  observation matrix
+- x:  parameter vector (p0, b, g)
+- z:  latent variable / true state matrix
+
+Given that the vector z is discrete valued, this calculation is feasible if the dimensionality of z (i.e. number of time points) is sufficiently small.
+
+## Exploring all possible state vectors
+
+For a small number of observed time points it is possible to explore all possible states of the vector z (where the definition of "small" may be e.g. 5-10).  Let's start with five time points, along with some parameter values for p0, b, g (normally these would be estimated):
+
+```{r}
+z_space <- expand.grid(time1=0:1, time2=0:1, time3=0:1, time4=0:1, time5=0:1) |>
+  as.matrix()
+z_space
+p0 <- 0.1
+b <- 0.1
+g <- 0.1
+```
+
+Obviously the dimensionality of this grows fairly horribly with the number of time points:
+
+```{r}
+2^(1:20)
+```
+
+... but let's just say that as long as we stick to e.g. <= 10 time points we areshould be OK.
+
+## Calculating p(y | x, z)
+
+From this matrix of 32 sets of possible states for z, we can easily calculate the p(y | x, z) part, with whatever flexibility we need in terms of imperfect test sensitivity/specificity/whatever.  In fact, the observations can even be continuous if we can assume e.g. a mixture distribution.  All that we need to do is to calculate the probability of the observed vector y given the parameters x and the vector z at each row of the matrix.
+
+Let's make it easy and say it is a binary imperfect test with se=0.8 and sp=0.99:
+
+```{r}
+obs_fun <- function(z, y){
+  dbinom(y, 1, z*0.8 + (1-z)*(1-0.99), log=TRUE) |> sum()
+}
+```
+
+We can calculate this for the first animal as an illustration:
+
+```{r}
+(y_given_xz <- apply(z_space, 1, obs_fun, y=obs[1,]) |> exp())
+```
+
+As expected, the z vector with highest support matches the observation vector:
+
+```{r}
+obs[1,]
+z_space[which.max(y_given_xz),]
+```
+
+## Calculating p(z | x)
+
+To complete the process, we still need the p(z | x) part in the equation.  This is easiest to do recursively for each time point at a time.  For the equations below we will assume that we are looking at the z vector where each is 1 for simplicity, but otherwise we just need to replace e.g. p0 with (1-p0) in the approprite places.
+
+We can start with p(z1 | x) i.e. for time=1, which is easy as it has no previous z on which to depend, so it is simply equal to p0 i.e.:
+
+p(z1 | x) = p0
+
+For time=2, we need to calculate p(z2 | x, z1), which is either:
+
+p(z2 | z1, x) = (1-g)  [where z1==1]
+
+or:
+
+p(z2 | z1, x) = b*p1  [where z1==0]
+
+Here, I use p1 to represent the infection force from other animals - I will come back to this.
+
+To calculate p(z1, z2 | x) we just use conditional probability rules i.e.:
+
+p(z1, z2 | x) = p(z2 | z1, x) * p(z1 | x)
+
+For time=3, we can do the same thing as for time=2, assuming that the process is Markovian (i.e. that the probability of z at time=t depends only on things at time=t-1 and not at time=t-2).  So we calculate:
+
+p(z3, z2, z1 | x) = p(z3 | z2, x) * p(z2 | x)
+
+where p(z3 | z2, x) is either (1-g) or b*p2, depending on the value of z2.  Ditto for time=4 and time=5 - replacing p2 with p3 and p4.
+
+Once we reach the end, we have p(z5, z4, z3, z2, z1 | x), which is another way of saying p(z | x).
+
+
+## Calculating p1, p2, p3, and p4
+
+In the previous section we needed to calculate the infection pressure at time=t as a function of the transmission parameter b and the proportion of (other) animals infected on the farm at time=t-1.  But as a side effect of the recursive algorithm, notice that we are also calculating the p(z_1+ | x), p(z_2+ | x), p(z_3+ | x) etc states recursively.  This allows us to approximate p1 = p(z_1+ | x) etc (technically we should have p1_i where each i drops the animal for which we are calculating external infection pressure, but this is easily doable).
+
+I say this is an approximation because we are marginalising each p over all possible states of z for all animals, rather than calculating it based on a realised set of states as we would typically do when estimating the z matrix as a parameter set.  But I think this is a reasonable approximation given the infection dynamics we are interested in.
+
+
+## Actual calculation
+
+Notice that the p(z | x) does not depend on the observation vector y, so we do not need to calculate it separately for each animal.  Technically, we should probably remove the state z at time t for each animal in turn, but there are only two of these, so we still only need two sets of p1...p4.  For now I will ignore this, and include the same animal's state for ease.
+
+```{r}
+pz_fun <- function(z, pars){
+
+  p0 <- pars[1]
+  b <- pars[2]
+  g <- pars[3]
+  
+  # External infection pressure:
+  pa <- numeric(length(z))
+  pa[1] <- p0  # Approximation
+  
+  # Probability of a positive z:
+  zp <- p0
+  # Probability of observed z:
+  za <- z[1]*zp + (1-z[1])*(1-zp)
+  
+  # Running total probability:
+  tp <- za
+
+  for(i in 2:length(z)){
+    zp <- z[i-1] * (1 - ((1-b) ^ pa[i-1])) + (1-z[i-1])*(1-g)
+    pa[i] <- zp  # Approximation
+    
+    za <- z[i]*p0 + (1-z[i])*(1-p0)
+    tp <- za * tp
+  }
+  
+  tp
+}
+(z_given_x <- apply(z_space, 1, pz_fun, pars=c(p0, b, g)))
+```
+
+Notice that these probabilities should sum to unity (i.e. one of the z vectors must be the correct one), and indeed they do:
+
+```{r}
+z_given_x |> sum()
+```
+
+Then for each animal we just sum the product of y_given_xz and z_given_x to get the overall likelihood:
+
+```{r}
+sapply(1:nrow(obs), function(animal){
+  y_given_xz <- apply(z_space, 1, obs_fun, y=obs[animal,]) |> exp()
+  sum(y_given_xz * z_given_x)
+})
+```
+
+In reality this would be done on the log scale for a parameter vector, i.e. something like:
+
+```{r}
+ll_fun <- function(pars = numeric(3)){
+  
+  p0 <- plogis(pars[1])
+  b <- plogis(pars[2])
+  g <- plogis(pars[3])
+  
+  z_given_x <- apply(z_space, 1, pz_fun, pars=c(p0, b, g))
+  
+  sapply(1:nrow(obs), function(animal){
+    y_given_xz <- apply(z_space, 1, obs_fun, y=obs[animal,]) |> exp()
+    -log(sum(y_given_xz * z_given_x))
+  }) |> sum()
+}
+
+opt <- optim(numeric(3), ll_fun)
+plogis(opt$par)
+```
+
+Given the small number of observations this problem is most likely not identifiable, but you get the point!
+
+## Implementation
+
+Obviously this would be much better done in C++ and used as a module for JAGS and/or external function for Stan.  So in JAGS we would have syntax something like:
+
+Obs ~ dHMM(p0, b, g)
+
+The benefit of doing it this way is that the same underlying C++ code base can be used for JAGS, Stan, and R implementations of the likelihood function (and also random Obs generation).  I have done this before (for more complex distributions/functions), and it is not so difficult once you know how ... but I think it would be great to write a "how to" paper where we describe how this is done using the HMM thing as an example.
+
+## Relationship to the forward/backward algorithm
+
+An alternative approach is the forward/backward algorithm, but to be honest I am not entirely sure how this works.  From a quick look at the Wikipedia page there do appear to be similarities e.g. the use of recursion, but the forward algorithm looks simpler in terms of not requiring the full matrix of possible z to be calculated.  But then it seems to calculate the joint probability of y_1:t,z_t, so it seems like z_t is still a parameter?  And the standard algorithm requires an assumption that the z_t is independent of everything except z_t-1, so it would need to be adapted to include transmission between animals - or have you already done this?  Perhaps some hybrid of the two approaches would work?
+
