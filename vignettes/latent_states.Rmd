@@ -72,7 +72,7 @@ Obviously the dimensionality of this grows fairly horribly with the number of ti
 2^(1:20)
 ```
 
-... but let's just say that as long as we stick to e.g. <= 10 time points we areshould be OK.
+... but let's just say that as long as we stick to e.g. <= 10 time points we should be OK.
 
 ## Calculating p(y | x, z)
 
