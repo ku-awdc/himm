@@ -1,3 +1,7 @@
 .Rproj.user
 inst/doc
+.Rhistory
+.Rapp.history
 *.DS_Store
+*.o
+*.so
