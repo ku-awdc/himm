@@ -17,6 +17,7 @@ using std::max;
 /*
   Simplest example of Himm
   Parameters are:
+    - prevalence at first time point
     - beta exogenous (constant infection rate)
     - beta density (density-dependent infection rate)
     - beta frequency (frequency-dependent infection rate)
@@ -34,7 +35,7 @@ namespace jags {
 namespace himm {
 
 DHimm::DHimm()
-    : ScalarDist("dhimm", 6L, DIST_POSITIVE)
+    : ScalarDist("dhimm", 7L, DIST_POSITIVE)
 {}
 
 bool
