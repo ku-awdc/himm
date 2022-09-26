@@ -1,6 +1,7 @@
 #include <Rcpp.h>
 
 #include "HimmWrapper.h"
+#include "pointer_storage.h"
 
 template <class RcppModuleClassName>
 RcppModuleClassName* invalidate_default_constructor() {
