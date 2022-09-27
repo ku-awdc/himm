@@ -19,7 +19,6 @@ using std::max;
   Parameters are:
     - prevalence at first time point
     - beta exogenous (constant infection rate)
-    - beta density (density-dependent infection rate)
     - beta frequency (frequency-dependent infection rate)
     - gamma (recovery rate)
     - sensitivity
@@ -35,7 +34,7 @@ namespace jags {
 namespace himm {
 
 DHimm::DHimm()
-    : ScalarDist("dhimm", 7L, DIST_POSITIVE)
+    : ScalarDist("dhimm", 6L, DIST_POSITIVE)
 {}
 
 bool
@@ -52,7 +51,9 @@ double DHimm::logDensity(double x, PDFType type,
   // Check the pointer storage:
   const int xint = 1L;
   const bool valid = verify_index(xint);
+  if(!valid) Rcpp::stop("Invalid");
   Himm* himm = get_pointer(xint);
+  const dens = himm->density();
 
     double d = 0;
     if (x == 1)

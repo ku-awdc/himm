@@ -1,12 +1,16 @@
 #ifndef POINTER_H_
 #define POINTER_H_
 
-#include "Himm.h"
-#include <Rcpp.h>
+class Himm;
 
-void add_pointer(Himm* pointer);
+int add_pointer(Himm* pointer);
+void remove_pointer(int index);
+void show_pointer(int index);
 bool verify_index(const int index);
-Rcpp::LogicalVector active_index();
 Himm* get_pointer(const int index);
+
+// Can't include this here:
+// #include <Rcpp.h>
+// Rcpp::LogicalVector active_index();
 
 #endif // POINTER_H_
