@@ -15,9 +15,14 @@ RcppModuleClassName* invalidate_default_constructor() {
 
 // TODO: Rcpp derives class to save retyping below???
 
+Rcpp::LogicalVector active_index();
+
 RCPP_MODULE(himm){
 
 	using namespace Rcpp;
+  
+  function("active_index", &active_index, "Get vector of indexes");
+  function("show_pointer", &show_pointer, "Show a pointer info");
 
   using Himm_NxN = HimmTemplate<0L, 0L>;
   class_<Himm_NxN>("Himm_NxN")

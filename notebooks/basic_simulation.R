@@ -165,3 +165,4 @@ model{
 
 res <- run.jags(mod)
 res
+
