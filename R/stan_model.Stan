@@ -16,8 +16,8 @@ parameters{
  array[K] real<lower = 0, upper = 1> test_char; // test characteristics.
                                                 // Probabilities of positive test result conditionnally on latent state
  simplex[K] pi1;    // initial state probabilities
- simplex[k] A[K];   // transition matrix
-                    // A[i, j] = p(z_t = j | z{t-1} = i)
+ simplex[k] B[K];   // transition matrix
+                    // B[i, j] = p(z_t = j | z{t-1} = i)
 
 }
 transformed parameters{
@@ -41,11 +41,11 @@ transformed parameters{
   }
 
 
-  for(t in 2){         // test at times 2 to T
+  for(t in 2:T){         // test at times 2 to T
     for(j in 1:K){     // current state
       for(i in 1:K){   // state at t-1
 
-        accumulator[i] = logalpha[t-1, i] + log(A[i, j]) + bernoulli_lpmf(y[t] | test_char[j]);
+        accumulator[i] = logalpha[t-1, i] + log(B[i, j]) + bernoulli_lpmf(y[t] | test_char[j]);
 
       }
 
@@ -59,6 +59,16 @@ transformed parameters{
 
 }
 model{
+
+// prior distributions for test characteristics
+// vector of the probability of getting a positive test result
+// conditionnaly on the latent state
+// the first element of the vector is 1 - specificity
+// the other ones are the sensitivities of the different tests
+test_char[1] ~ beta(Sp_a, Sp_b);
+test_char[2] ~ beta(Se1_a, Se1_b);
+test_char[3] ~ beta(Se2_a, Se2_b);
+test_char[4] ~ beta(Se3_a, Se3_b);
 
   target += log_sum_exp(logalpha[T]);
 
