@@ -13,10 +13,9 @@ knitr::opts_chunk$set(echo = TRUE)
 library(DiagrammeR)
 ```
 
-
 # Objective
 
-The objective of this document is to describe the matitis model and its translation into code.
+The objective of this document is to describe the mastitis model and its translation into code.
 
 # Model assumptions
 
@@ -60,7 +59,7 @@ The assumption of the Markovian transition is that the *state* at time $t+1$ onl
 We can construct the transition matrix on an arbitrary scale and then scale it in order for the sum of the values on a given row to be one.
 
 ```{r}
-transM <- matrix(
+A <- matrix(
   c(1,   .1, .1, 
     .01,  1, .01, 
     100, .1,  1),
@@ -69,7 +68,7 @@ transM <- matrix(
   dimnames = list(c("H", "C", "E"), c("H", "C", "E"))
 )
 
-transM
+A
 ```
 
 The matrix is rescaled.
@@ -77,11 +76,11 @@ The matrix is rescaled.
 ```{r}
 for(i in 1:3){
   
-  transM[i,] <- transM[i,] / sum(transM[i,])
+  A[i,] <- A[i,] / sum(A[i,])
   
 }
 
-transM
+A
 ```
 
 ## Four state model
@@ -126,161 +125,68 @@ grViz("
 There are now 16 possible transitions, defined by a 4x4 matrix. The additional state represents the probability of having both contagious and environmental mastitis at the same time. This matrix can be represented as follows:
 
 ```{r}
-transM4 <- matrix(
+B <- matrix(
   paste0(rep(paste0("b", 1:4), each=4), 1:4),
   byrow = TRUE,
   ncol = 4,
   dimnames = list(c("H", "C", "E", "CE"), c("H", "C", "E", "CE"))
 )
-transM4
+B
 ```
 
-Below is a list of the different parameters and the constraints that need to be placed on them. In order to simplify the notation, $C$ is used for $C=1, E= 0$ and CE is used for $C=1, E=1$.
+# Constructing the transition matrix for the 4 state model
 
-### Probability of remaining healthy. 
-
-User defined.
-
-$p(H \rightarrow H) = \beta_{11}$
-
-
-### Probability of getting contagious mastitis.
-
-User defined.
-
-$p(H \rightarrow C) = \beta_{12}$
-
-
-### Probability of getting environmental mastitis.
-
-User defined.
-
-$p(H \rightarrow E)  = \beta_{13}$
-
-### Probability of getting both contagious and environmental mastitis.
-
-Considering the probabilities of both events are independant, product of the 2 probabilities.
-
-$p(H \rightarrow CE) = \beta_{12}\beta_{13}$
-
-```{r, echo = FALSE}
-transM4[1, 4] <- "b12 b13"
-```
-
-### Probability of eliminating a contagious infection
-
-User defined.
-
-$p(C \rightarrow H) = \beta_{21}$
-
-### Probability of remaining infected with a contagious pathogen
-
-User defined.
-
-$p(C \rightarrow C) = \beta_{22}$
-
-### Probability of transitioning from contagious to environmental pathogen
-
-Requires to cure the contagious pathogen and then get infected with an environmental one.
-
-$p(C \rightarrow E) = \beta_{21}\beta_{13}$
-
-```{r, echo = FALSE}
-transM4[2, 3] <- "b21 b13"
-```
-
-### Probability of transitioning from contagious to being infected by both contagious and environmental pathogens
-
-Not curing and acquiring a new infection by environmental.
-
-$p(C \rightarrow CE) = \beta_{22}\beta_{13}$
-
-```{r, echo = FALSE}
-transM4[2, 4] <- "b22 b13"
-```
-
-
-### Probability of eliminating an environmental pathogen
-
-User defined.
-
-$p(E \rightarrow H) = \beta_{31}$
-
-
-### Probability transitioning from environmental to contagious
-
-Probability of eliminating an environmental pathogen and then acquiring a contagious one.
-
-$p(E \rightarrow C) = \beta_{31}\beta_{12}$
-
-```{r, echo = FALSE}
-transM4[3, 2] <- "b31 b12"
-```
-
-### Probability of remaining infected with an environmental pathogen
-
-User defined.
-
-$p(E \rightarrow E) = \beta_{33}$
-
-
-### Probability of transitioning from environmental to environmental and contagious
-
-Not eliminating the environmental infection and then getting infected with a contagious pathogen
-
-$p(E \rightarrow CE) = \beta_{33}\beta_{12}$
-
-```{r, echo = FALSE}
-transM4[3, 4] <- "b12 b33"
-```
-
-### Probability of transitioning from environmental and contagious to healthy
-
-Eliminating both infections
-
-$p(CE \rightarrow H) = \beta_{21}\beta_{31}$
-
-```{r, echo = FALSE}
-transM4[4, 1] <- "b21 b31"
-```
-
-### Probability of transitioning from environmental and contagious to contagious
-
-Eliminating the environmental infection and remaining infected with the contagious pathogen
-
-$p(CE \rightarrow C) = \beta_{31}\beta_{22}$
-
-```{r, echo = FALSE}
-transM4[4, 2] <- "b22 b31"
-```
-
-
-### Probability of transitioning from environmental and contagious to environmental
-
-Eliminating the contagious infection and remaining infected with the environmental pathogen
-
-$p(CE \rightarrow E) = \beta_{21}\beta_{33}$
-
-```{r, echo = FALSE}
-transM4[4, 3] <- "b21 b33"
-```
-
-
-### Probability of remaining in the environmental and contagious class
-
-Remaining infected by both types of pathogens
-
-$p(CE \rightarrow CE) = \beta_{22}\beta_{33}$
-
-```{r, echo = FALSE}
-transM4[4, 4] <- "b22 b33"
-```
-
-### Final transition matrix
-
-The final transition matrix has 7 different parameters.
+The transition matrix for the 4 states is built from the transition matrix for the 3 state model. Transitions from environmental to contagious and from contagious to environmental are supposed impossible. This will prevent the model from assuming that cows with a high SCC between 2 consecutive months jump from environmental to contagious and vice versa.
 
 ```{r}
-transM4
+B <- matrix(
+  rep(0, 16),
+  byrow = TRUE,
+  ncol = 4,
+  dimnames = list(c("H", "C", "E", "CE"), c("H", "C", "E", "CE"))
+)
+
+## From healthy
+B[1, 1] <- A[1, 1]
+# this is to keep the sum of the probabilities on this row at 1
+# while conserving the proportions in the different categories
+factr <- (A[1, 2] + A[1, 3]) / (A[1, 2] + A[1, 3] + A[1, 2] * A[1, 3])
+
+B[1, 2] <- A[1, 2] * factr
+B[1, 3] <- A[1, 3]  * factr
+B[1, 4] <- prod(A[1, 2:3])  * factr
+
+## From contagious
+# transitions to environmental and environmental + contagious are impossible
+denom <- sum(A[2, 1:2])
+
+B[2, 1] <- A[2, 1] / denom
+B[2, 2] <- A[2, 2] / denom
+B[2, 3] <- 0
+B[2, 4] <- 0
+
+## From environmental
+# transitions to contagious and environmental + contagious are impossible
+denom <- sum(A[3, c(1, 3)])
+B[3, 1] <- A[3, 1] / denom
+B[3, 2] <- 0
+B[3, 3] <- A[3, 3] / denom
+B[3, 4] <- 0
+
+## From contagious + environmental
+# constraint to ensure that the row sums to one
+fctr <- 1 / (A[2, 1] + A[3, 1] + A[2, 1] * A[3, 1])
+
+B[4, 1] <- A[2, 1] * A[3, 1] * fctr
+B[4, 2] <- A[3, 1] * fctr
+B[4, 3] <- A[2, 1] * fctr
+B[4, 4] <- 1 - sum(B[4, 1:3])
+
+rm(list = c("denom", "factr"))
+
+B
 ```
+
+
+
 
