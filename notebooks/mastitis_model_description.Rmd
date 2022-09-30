@@ -1,0 +1,286 @@
+---
+title: "Description of the mastitis model"
+author: "Aurélien Madouasse"
+date: "2022-09-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries}
+library(DiagrammeR)
+```
+
+
+# Objective
+
+The objective of this document is to describe the matitis model and its translation into code.
+
+# Model assumptions
+
+## Three state model
+
+Considering individual cows at a point in time, we define 3 states with regard to mastitis.
+
+1. Healthy (H)
+2. Contagious mastitis (C)
+3. Environmental mastitis (E)
+
+Monthly transition between these states is assumed to be Markovian.
+
+```{r dag mastitis 3 states, echo = FALSE}
+grViz("
+ digraph mastitis_3_states{
+ 
+ 	  # Nodes
+	  node [shape = circle]
+	  H [label = 'H']
+	  C [label = 'C']
+	  E [label = 'E']
+	  
+	  H -> C
+	  H -> E
+	  H -> H
+	  
+	  C -> H
+	  C -> E
+	  C -> C
+	  
+	  E -> H
+	  E -> C
+	  E -> E
+ }
+ ")
+```
+
+The assumption of the Markovian transition is that the *state* at time $t+1$ only depends on the state at time $t$. The probabilities of transition can be described with a square matrix with the states at time $t$ in rows and the states at time $t+1$ in columns. The diagonal of this matrix represent the probabilities of remaining in the same state. From an initial state, the sum of the probabilities of reaching all states has to be one. 
+
+We can construct the transition matrix on an arbitrary scale and then scale it in order for the sum of the values on a given row to be one.
+
+```{r}
+transM <- matrix(
+  c(1,   .1, .1, 
+    .01,  1, .01, 
+    100, .1,  1),
+  byrow = TRUE,
+  ncol = 3,
+  dimnames = list(c("H", "C", "E"), c("H", "C", "E"))
+)
+
+transM
+```
+
+The matrix is rescaled.
+
+```{r}
+for(i in 1:3){
+  
+  transM[i,] <- transM[i,] / sum(transM[i,])
+  
+}
+
+transM
+```
+
+## Four state model
+
+In this model, the a cow can have an infection with both contagious and environmental pathogens at the same time. 
+
+```{r dag mastitis 4 states, echo = FALSE}
+grViz("
+ digraph mastitis_4_states{
+ 
+ 	  # Nodes
+	  node [shape = circle]
+	  H [label = 'H']
+	  C [label = 'C=1, E=0']
+	  E [label = 'C=0, E=1']
+	  CE [label = 'C=1, E=1']
+	  
+	  H -> C
+	  H -> E
+	  H -> H
+	  H -> CE
+	  
+	  C -> H
+	  C -> E
+	  C -> C
+	  C -> CE
+	  
+	  E -> H
+	  E -> C
+	  E -> E
+	  E -> CE
+	  
+	  CE -> H
+	  CE -> C
+	  CE -> E
+	  CE -> CE
+
+ }
+ ")
+```
+
+There are now 16 possible transitions, defined by a 4x4 matrix. The additional state represents the probability of having both contagious and environmental mastitis at the same time. This matrix can be represented as follows:
+
+```{r}
+transM4 <- matrix(
+  paste0(rep(paste0("b", 1:4), each=4), 1:4),
+  byrow = TRUE,
+  ncol = 4,
+  dimnames = list(c("H", "C", "E", "CE"), c("H", "C", "E", "CE"))
+)
+transM4
+```
+
+Below is a list of the different parameters and the constraints that need to be placed on them. In order to simplify the notation, $C$ is used for $C=1, E= 0$ and CE is used for $C=1, E=1$.
+
+### Probability of remaining healthy. 
+
+User defined.
+
+$p(H \rightarrow H) = \beta_{11}$
+
+
+### Probability of getting contagious mastitis.
+
+User defined.
+
+$p(H \rightarrow C) = \beta_{12}$
+
+
+### Probability of getting environmental mastitis.
+
+User defined.
+
+$p(H \rightarrow E)  = \beta_{13}$
+
+### Probability of getting both contagious and environmental mastitis.
+
+Considering the probabilities of both events are independant, product of the 2 probabilities.
+
+$p(H \rightarrow CE) = \beta_{12}\beta_{13}$
+
+```{r, echo = FALSE}
+transM4[1, 4] <- "b12 b13"
+```
+
+### Probability of eliminating a contagious infection
+
+User defined.
+
+$p(C \rightarrow H) = \beta_{21}$
+
+### Probability of remaining infected with a contagious pathogen
+
+User defined.
+
+$p(C \rightarrow C) = \beta_{22}$
+
+### Probability of transitioning from contagious to environmental pathogen
+
+Requires to cure the contagious pathogen and then get infected with an environmental one.
+
+$p(C \rightarrow E) = \beta_{21}\beta_{13}$
+
+```{r, echo = FALSE}
+transM4[2, 3] <- "b21 b13"
+```
+
+### Probability of transitioning from contagious to being infected by both contagious and environmental pathogens
+
+Not curing and acquiring a new infection by environmental.
+
+$p(C \rightarrow CE) = \beta_{22}\beta_{13}$
+
+```{r, echo = FALSE}
+transM4[2, 4] <- "b22 b13"
+```
+
+
+### Probability of eliminating an environmental pathogen
+
+User defined.
+
+$p(E \rightarrow H) = \beta_{31}$
+
+
+### Probability transitioning from environmental to contagious
+
+Probability of eliminating an environmental pathogen and then acquiring a contagious one.
+
+$p(E \rightarrow C) = \beta_{31}\beta_{12}$
+
+```{r, echo = FALSE}
+transM4[3, 2] <- "b31 b12"
+```
+
+### Probability of remaining infected with an environmental pathogen
+
+User defined.
+
+$p(E \rightarrow E) = \beta_{33}$
+
+
+### Probability of transitioning from environmental to environmental and contagious
+
+Not eliminating the environmental infection and then getting infected with a contagious pathogen
+
+$p(E \rightarrow CE) = \beta_{33}\beta_{12}$
+
+```{r, echo = FALSE}
+transM4[3, 4] <- "b12 b33"
+```
+
+### Probability of transitioning from environmental and contagious to healthy
+
+Eliminating both infections
+
+$p(CE \rightarrow H) = \beta_{21}\beta_{31}$
+
+```{r, echo = FALSE}
+transM4[4, 1] <- "b21 b31"
+```
+
+### Probability of transitioning from environmental and contagious to contagious
+
+Eliminating the environmental infection and remaining infected with the contagious pathogen
+
+$p(CE \rightarrow C) = \beta_{31}\beta_{22}$
+
+```{r, echo = FALSE}
+transM4[4, 2] <- "b22 b31"
+```
+
+
+### Probability of transitioning from environmental and contagious to environmental
+
+Eliminating the contagious infection and remaining infected with the environmental pathogen
+
+$p(CE \rightarrow E) = \beta_{21}\beta_{33}$
+
+```{r, echo = FALSE}
+transM4[4, 3] <- "b21 b33"
+```
+
+
+### Probability of remaining in the environmental and contagious class
+
+Remaining infected by both types of pathogens
+
+$p(CE \rightarrow CE) = \beta_{22}\beta_{33}$
+
+```{r, echo = FALSE}
+transM4[4, 4] <- "b22 b33"
+```
+
+### Final transition matrix
+
+The final transition matrix has 7 different parameters.
+
+```{r}
+transM4
+```
+
