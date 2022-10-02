@@ -14,24 +14,23 @@ namespace himm {
  * </pre>
  */
 class DHimm : public ScalarDist {
+private:
+  mutable bool m_reported = false;
+  mutable int m_pointer_index = 0L;
 public:
     DHimm();
     double logDensity(double x, PDFType type,
 		      std::vector<double const *> const &parameters,
 		      double const *lbound, double const *ubound) const;
-    double randomSample(std::vector<double const *> const &parameters, 
+    double randomSample(std::vector<double const *> const &parameters,
 			double const *lbound, double const *ubound,
 			RNG *rng) const;
     double typicalValue(std::vector<double const *> const &parameters,
 			double const *lbound, double const *ubound) const;
-    /** Checks that p lies in the open interval (0,1) */
-    bool checkParameterValue(std::vector<double const *> const &parameters) 
+      bool checkParameterValue(std::vector<double const *> const &parameters)
 	const;
-    /** Bernoulli distribution cannot be bounded */
-    bool canBound() const;
-    /** Bernoulli distribution is discrete valued */
     bool isDiscreteValued(std::vector<bool> const &mask) const;
-    double KL(std::vector<double const *> const &par1, 
+    double KL(std::vector<double const *> const &par1,
 	      std::vector<double const *> const &par2) const;
 };
 

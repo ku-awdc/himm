@@ -30,8 +30,8 @@ Kernel configured for up to 10 processors.
 Processor type: arm64e (ARM64E)
 Processors active: 0 1 2 3 4 5 6 7 8 9
 Primary memory available: 64.00 gigabytes
-Default processor set: 875 tasks, 3848 threads, 10 processors
-Load average: 6.87, Mach factor: 4.77
+Default processor set: 957 tasks, 4204 threads, 10 processors
+Load average: 66.19, Mach factor: 2.55
 /bin/machine           = unknown
 /usr/bin/oslevel       = unknown
 /bin/universe          = unknown
@@ -52,6 +52,7 @@ PATH: /usr/local/bin/
 PATH: /Users/matthewdenwood/Applications/quarto/bin/
 PATH: /usr/texbin/
 PATH: /Applications/RStudio.app/Contents/MacOS/quarto/bin/
+PATH: /Applications/RStudio.app/Contents/MacOS/
 PATH: /Applications/RStudio.app/Contents/MacOS/
 PATH: /Applications/RStudio.app/Contents/MacOS/
 PATH: /Applications/RStudio.app/Contents/MacOS/
@@ -137,12 +138,12 @@ configure:3257: $? = 0
 configure:3301: result: yes
 configure:3321: checking for clang++ -arch arm64 -std=gnu++14 option to enable C++11 features
 configure:3336: clang++ -arch arm64 -std=gnu++14  -c -falign-functions=64 -Wall -g -O2 -I/usr/local/include/JAGS conftest.cpp >&5
-conftest.cpp:136:7: warning: variable 'total' set but not used [-Wunused-but-set-variable]
-  int total = 0;
-      ^
 conftest.cpp:139:16: warning: unused variable 'a4' [-Wunused-variable]
   decltype(a2) a4 = 34895.034;
                ^
+conftest.cpp:136:7: warning: variable 'total' set but not used [-Wunused-but-set-variable]
+  int total = 0;
+      ^
 conftest.cpp:132:8: warning: unused variable 'a1' [-Wunused-variable]
   auto a1 = 6538;
        ^
@@ -152,14 +153,14 @@ conftest.cpp:143:9: warning: unused variable 'sa' [-Wunused-variable]
 conftest.cpp:147:23: warning: unused variable 'il' [-Wunused-variable]
   cxx11test::testinit il = { 4323, 435234.23544 };
                       ^
+conftest.cpp:170:8: warning: unused variable 'c' [-Wunused-variable]
+  auto c = sum(1.0, 2.0, 3.0);
+       ^
 conftest.cpp:169:8: warning: unused variable 'b' [-Wunused-variable]
   auto b = sum(1, 2);
        ^
 conftest.cpp:168:8: warning: unused variable 'a' [-Wunused-variable]
   auto a = sum(1);
-       ^
-conftest.cpp:170:8: warning: unused variable 'c' [-Wunused-variable]
-  auto c = sum(1.0, 2.0, 3.0);
        ^
 conftest.cpp:175:25: warning: empty parentheses interpreted as a function declaration [-Wvexing-parse]
   cxx11test::delegate d2();
@@ -170,15 +171,15 @@ conftest.cpp:175:25: note: remove parentheses to declare a variable
 conftest.cpp:184:9: warning: unused variable 'c' [-Wunused-variable]
   char *c = nullptr;
         ^
-conftest.cpp:193:19: warning: unused variable 'utf16' [-Wunused-variable]
-  char16_t const *utf16 = u"UTF-8 string \u2500";
-                  ^
 conftest.cpp:194:19: warning: unused variable 'utf32' [-Wunused-variable]
   char32_t const *utf32 = U"UTF-32 string \u2500";
                   ^
 conftest.cpp:192:15: warning: unused variable 'utf8' [-Wunused-variable]
   char const *utf8 = u8"UTF-8 string \u2500";
               ^
+conftest.cpp:193:19: warning: unused variable 'utf16' [-Wunused-variable]
+  char16_t const *utf16 = u"UTF-8 string \u2500";
+                  ^
 conftest.cpp:94:9: warning: private field 'i' is not used [-Wunused-private-field]
     int i;
         ^

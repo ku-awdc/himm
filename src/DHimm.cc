@@ -34,52 +34,99 @@ namespace jags {
 namespace himm {
 
 DHimm::DHimm()
-    : ScalarDist("dhimm", 6L, DIST_POSITIVE)
+    : ScalarDist("dhimm", 6L, DIST_SPECIAL)
 {}
+  
 
-bool
-DHimm::checkParameterValue (vector<double const *> const &parameters) const
+bool DHimm::checkParameterValue (vector<double const *> const &parameters) const
 {
-  // Check that the external reference/id is still valid:
-    return  (PROB(parameters) >= 0.0 && PROB(parameters) <= 1.0);
+  // Can only do this when we know the pointer index:
+  if(m_pointer_index==0L) return true;
+  
+  // Otherwise check the pointer storage:
+  const bool valid = verify_index(m_pointer_index);
+  if(!valid)
+  {
+    printf("INVALID POINTER INDEX\n");
+    return JAGS_NAN;
+    // throw("Invalid pointer index (response value)");
+  }  
+  // And get the pointer:
+  Himm* himm = get_pointer(m_pointer_index);    
+  
+  // Then TODO checks:
+  
+  return true;
 }
 
 double DHimm::logDensity(double x, PDFType type,
 			 vector<double const *> const &parameters,
 			 double const *lbound, double const *ubound) const
 {
+  // Set the pointer on first run:
+  const int xint = static_cast<int>(x);
+  if(m_pointer_index == 0L)
+  {
+    m_pointer_index = xint;
+    printf("SETTING POINTER INDEX\n");
+  }
+  
+  // Check the pointer hasn't changed:
+  if(xint != m_pointer_index)
+  {
+    printf("CHANGED POINTER INDEX\n");
+    return JAGS_NAN;
+  }
   // Check the pointer storage:
-  const int xint = 1L;
-  const bool valid = verify_index(xint);
-  if(!valid) Rcpp::stop("Invalid");
-  Himm* himm = get_pointer(xint);
-  const dens = himm->density();
+  const bool valid = verify_index(m_pointer_index);
+  if(!valid)
+  {
+    printf("INVALID POINTER INDEX\n");
+    return JAGS_NAN;
+    // throw("Invalid pointer index (response value)");
+  }  
+  // Get the pointer:
+  Himm* himm = get_pointer(m_pointer_index);    
+  // Unless we have already reported who we are, do that:
+  if(!m_reported)
+  {
+    himm->show();
+    m_reported = true;
+  }
 
-    double d = 0;
-    if (x == 1)
-	d = PROB(parameters);
-    else if (x == 0)
-	d = 1 - PROB(parameters);
+  // Set up parameter vectors:
+  const std::vector<const double> prv1 = { *parameters[0L] };
+  const std::vector<const double> beta_const = { *parameters[1L] };
+  const std::vector<const double> beta_freq = { *parameters[2L] };
+  const std::vector<const double> gamm = { *parameters[3L] };
+  const std::vector<const double> test_pars = { *parameters[4L], *parameters[5L] };
 
-    return d == 0 ? JAGS_NEGINF : log(d);
+  // Set rate parameters:
+  himm->setRates(prv1, beta_const, beta_freq, gamm);
+  // Set diagnostic test parameters:
+  himm->setTestPars(test_pars);
+
+  // Calculate log density etc:
+  himm->calculate();
+
+  // Get log density:
+  const double dens = himm->logDensity();
+
+  return dens;
+  //return d == 0 ? JAGS_NEGINF : log(d);
 }
 
 double DHimm::randomSample(vector<double const *> const &parameters,
 			   double const *lbound, double const *ubound,
 			   RNG *rng) const
 {
-    return rng->uniform() < PROB(parameters) ? 1 : 0;
+    return JAGS_NAN;
 }
 
 double DHimm::typicalValue(vector<double const *> const &parameters,
 			   double const *lbound, double const *ubound) const
 {
-    return PROB(parameters) > 0.5 ? 1 : 0;
-}
-
-bool DHimm::canBound() const
-{
-    return false;
+    return JAGS_NAN;
 }
 
 bool DHimm::isDiscreteValued(vector<bool> const &mask) const
@@ -87,22 +134,10 @@ bool DHimm::isDiscreteValued(vector<bool> const &mask) const
     return true;
 }
 
-    double DHimm::KL(vector<double const *> const &par0,
-		     vector<double const *> const &par1) const
-    {
-	double p0 = PROB(par0);
-	double p1 = PROB(par1);
-
-	if (p0 == 0) {
-	    return - log(1 - p1);
-	}
-	else if (p0 == 1) {
-	    return - log(p1);
-	}
-	else {
-	    return (p0 * (log(p0) - log(p1)) +
-		    (1 - p0) * (log(1 - p0) - log(1 - p1)));
-	}
-    }
+double DHimm::KL(vector<double const *> const &par0,
+        vector<double const *> const &par1) const
+{
+	return JAGS_NAN;
+}
 
 }}

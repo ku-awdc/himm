@@ -104,9 +104,37 @@ Obs <- obscat
 Obs[] <- rbinom(Nani*Ntime, 1, obsprob[obscat])
 
 
+## Observation probabilities:
+
+# D = 1:
+prob <- array(dim=c(2))
+prob[1] <- 0.1  # 1-sp
+prob[2] <- 0.8  # se
+prob
+
+# D = 2:
+prob <- array(dim=c(2,2))
+prob[1,1] <- 0.05  # probability of positive test for -/- animal
+prob[2,1] <- 0.8   # probability of positive test for +/- animal
+prob[1,2] <- 0.7  # probability of positive test for -/+ animal
+prob[2,2] <- 0.9   # probability of positive test for +/+ animal
+prob
+
+# D = 3:
+prob <- array(dim=c(2,2,2))
+# etc
+
+
+# For mastitis:
+Obsprob <- array(dim=c(2,2))
+Obsprob[1,1] <- 0.1  # probability of positive test for -/- animal
+Obsprob[2,1] <- 0.9   # probability of positive test for +/- animal
+Obsprob[1,2] <- 0.9  # probability of positive test for -/+ animal
+Obsprob[2,2] <- 0.9   # probability of positive test for +/+ animal
+Obsprob
+
 
 mod <- "
-
 model{
 
   # DataIndex ~ dhimm(p1, b1, b2, b3, gamma, se, sp)
@@ -134,11 +162,7 @@ model{
   # Obs layer:
   for(a in 1:Nani){
     for(t in 1:Ntime){
-      comb_state[a,t] <- state[a,t,1]*2 + state[a,t,2] + 1
-#      comb_state[a,t] <- ifelse(state[a,t,1]==0 & state[a,t,2]==0, 1,
-#                          ifelse(state[a,t,1]==1 & state[a,t,2]==0, 2,
-#                          ifelse(state[a,t,1]==0 & state[a,t,2]==1, 3, 4)))
-      Obs[a,t] ~ dbern(obsprob[comb_state[a,t]])
+      Obs[a,t] ~ dbern(Obsprob[state[a,t,1]+1, state[a,t,2]+1])
     }
   }
 
@@ -154,11 +178,16 @@ model{
   gamma[2] ~ dbeta(10,2)
 #  gamma[2] <- 0.95
 
-  # Fix the equivalent of test se/sp for now:
-  obsprob <- c(0.1, 0.9, 0.9, 0.9)
+  # NB: Obsprob could be parameters to estimate rather than data
+  Obsprob[1,1] <- 1-sp
+  Obsprob[1,2] <- se
+  Obsprob[2,1] <- se
+  Obsprob[2,2] <- se
+  sp ~ dbeta(5,1)
+  se ~ dbeta(5,1)
 
   #data# Nani, Ntime, Obs
-  #monitor# beta, gamma, p1
+  #monitor# beta, gamma, p1, se, sp
 }
 "
 
