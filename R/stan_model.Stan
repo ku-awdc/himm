@@ -16,7 +16,7 @@ parameters{
  array[K] real<lower = 0, upper = 1> test_char; // test characteristics.
                                                 // Probabilities of positive test result conditionnally on latent state
  simplex[K] pi1;    // initial state probabilities
- simplex[k] B[K];   // transition matrix
+ simplex[K] B[K];   // transition matrix
                     // B[i, j] = p(z_t = j | z{t-1} = i)
 
 }
@@ -56,6 +56,8 @@ transformed parameters{
   } // end of loop for time
 
   // } // end of loop for animals
+
+  }
 
 }
 model{

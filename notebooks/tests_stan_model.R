@@ -38,7 +38,16 @@ stan_data <- list(
 
 
 stan_model_txt <-
-"data{
+"functions{
+
+ vector normalise(vector x){
+
+  return x / sum(x);
+
+ }
+
+}
+data{
 
   int<lower = 1> K;      // number of states
   int<lower = 1> Nobs;   // number of observations
@@ -48,7 +57,7 @@ stan_model_txt <-
   array[Nani] int<lower = 0, upper = Nobs> row_sec;   // id of second row for each cow
   array[Nani] int<lower = 0, upper = Nobs> row_last;  // id of last row for each cow
 
-    // test characteristics
+  // test characteristics
   real<lower = 1> Sp_a;
   real<lower = 1> Sp_b;
   real<lower = 1> Se1_a;
@@ -63,48 +72,95 @@ parameters{
 
   array[K] real<lower = 0, upper = 1> test_char; // test characteristics.
   // Probabilities of positive test result conditionnally on latent state
-  simplex[K] pi1;    // initial state probabilities
+  simplex[K] pi1;          // initial state probabilities
   array[K] simplex[K] B;   // transition matrix
-  // B[i, j] = p(z_t = j | z{t-1} = i)
+                           // B[i, j] = p(z_t = j | z{t-1} = i)
 
 
 }
 transformed parameters{
-  // definition of logalpha
-  matrix[Nobs, K] logalpha;
-
-  {
+  // definition of alpha and logalpha for the forward algorithm
+  array[Nobs] vector[K] logalpha;
+  array[Nobs] vector[K] alpha;
+  // definition of beta and logbeta for the backward algorithm
+  array[Nobs] vector[K] logbeta;
+  array[Nobs] vector[K] beta;
+  // definition of gamma and loggamma for the forward-backaward algorithm
+  array[Nobs] vector[K] loggamma;
+  array[Nobs] vector[K] gamma;
 
    // loop over all animals
     for(a in 1:Nani){
 
+   { // forward algorithm
+
       array[K] real accumulator;
 
       // first test in sequence
-      for(k1 in 1:K){
-
+      for(k1 in 1:K)
         logalpha[row_first[a], k1] = log(pi1[k1]) + bernoulli_lpmf(y[row_first[a]] | test_char[k1]);
 
-      }
-
-
-      for(t in row_sec[a]:row_last[a]){   // test at times 2 to T
-        for(j in 1:K){     // current state
-          for(i in 1:K){   // state at t-1
+      // test at times 2 to T
+      for(t in row_sec[a]:row_last[a]){
+       for(j in 1:K){     // current state
+         for(i in 1:K){   // state at t-1
 
             accumulator[i] = logalpha[t-1, i] + log(B[i, j]) + bernoulli_lpmf(y[t] | test_char[j]);
 
-          }
+          } // i
 
           logalpha[t, j] = log_sum_exp(accumulator);
 
-        }
+        } // j
 
        } // end of loop for time
 
+      } // end of loop for the forward algorithm
+
+
+   { // backward algorithm
+
+      array[K] real accumulator;
+
+     // last test in sequence
+      for(k1 in 1:K)
+        logbeta[row_last[a], k1] = 1;
+
+     // backward from the last time point in sequence
+     for(tforward in 0:(row_last[a] - 2)){
+
+      int t;
+      t = row_last[a] - tforward;
+
+      for(j in 1:K){     // previous state, from j to i
+        for(i in 1:K){   // current state
+
+         accumulator[i] = logbeta[t, i] + log(B[j, i]) + bernoulli_lpmf(y[t] | test_char[i]);
+
+          } // i
+
+          logbeta[t - 1, j] = log_sum_exp(accumulator);
+
+        } // j
+
+      } // tforward
+
+
+   } // backward algorithm
+
+
       } // end of loop for animals
 
-  }
+   // forward-backward
+   for(t in 1:Nobs){
+
+    alpha[t] = softmax(logalpha[t]);
+    beta[t] = softmax(logbeta[t]);
+    loggamma[t] = alpha[t] .* beta[t];
+    gamma[t] = normalise(loggamma[t]);
+
+   }
+
 
   }
 model{
@@ -137,3 +193,4 @@ stan_fit <- stan_model$sample(
   chains = 3
    )
 
+rslts <- as_tibble(stan_fit$summary())
