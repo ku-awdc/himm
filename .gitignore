@@ -5,3 +5,5 @@ inst/doc
 *.DS_Store
 *.o
 *.so
+config.log
+config.status
