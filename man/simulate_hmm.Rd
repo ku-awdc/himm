@@ -12,8 +12,8 @@ simulate_basic(
   beta_const = 0.05,
   beta_freq = 0.02,
   gamma = 0.08,
-  se = 0.8,
-  sp = 0.99
+  sensitivity = 0.8,
+  specificity = 0.99
 )
 }
 \arguments{
@@ -21,4 +21,7 @@ simulate_basic(
 }
 \description{
 HMM data in one of two formats:  (1) simple matrix, (2) data frame
+}
+\examples{
+Obs <- simulate_basic()
 }
