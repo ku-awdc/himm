@@ -5,7 +5,7 @@
 \alias{unload_module}
 \title{Load the internal JAGS module}
 \usage{
-load_module(modloc, pkgname)
+load_module()
 
 unload_module()
 }

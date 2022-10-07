@@ -42,7 +42,7 @@ class HimmTemplate : public Himm
     std::array<int, T_nT> binarise(int num)
     {
       std::array<int, T_nT> rv;
-      for(int i=0; i<rv.size(); ++i)
+      for(size_t i=0; i<rv.size(); ++i)
       {
         rv[i] = 0L;
       }
@@ -61,9 +61,9 @@ class HimmTemplate : public Himm
     Rcpp::IntegerMatrix getZs() const
     {
       Rcpp::IntegerMatrix rv(T_2pT, T_nT);
-      for(int i=0L; i<T_2pT; ++i)
+      for(size_t i=0L; i<T_2pT; ++i)
       {
-        for(int j=0L; j<T_nT; ++j)
+        for(size_t j=0L; j<T_nT; ++j)
         {
           rv(i,j) = m_zs[i][j];
         }

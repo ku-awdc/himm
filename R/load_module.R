@@ -19,7 +19,10 @@
 
 #' @rdname load_module
 #' @export
-load_module <- function(modloc, pkgname){
+load_module <- function(){
+
+  modloc <- himm_env$module$modloc
+  pkgname <- himm_env$module$pkgname
 
 	# Find and load the shared library:
 	slibpath <- file.path(modloc, paste(pkgname, .Platform$dynlib.ext, sep=''))
@@ -37,7 +40,7 @@ load_module <- function(modloc, pkgname){
 
 	}
 
-	package_env$slibpath <- slibpath
+	himm_env$module$slibpath <- slibpath
 	invisible(TRUE)
 
 }
@@ -46,19 +49,17 @@ load_module <- function(modloc, pkgname){
 #' @export
 unload_module <- function(){
 
-	if(is.null(package_env$slibpath)){
-		warning('Unable to load the dynlib as it has not been loaded')
+	if(is.null(himm_env$module$slibpath)){
+		# warning('Unable to load the dynlib as it has not been loaded')
 		invisible(FALSE)
+	}else{
+	  slibpath <- himm_env$module$slibpath
+	  cat("Unloading shared library from:  ", slibpath, "\n", sep="")
+	  success <- try(dyn.unload(slibpath))
+	  if(inherits(success, 'try-error'))
+	    warning("The internal dynlib could not be unloaded")
+
+	  himm_env$module$slibpath <- NULL
+	  invisible(TRUE)
 	}
-
-	slibpath <- package_env$slibpath
-	cat("Unloading shared library from:  ", slibpath, "\n", sep="")
-	success <- try(dyn.unload(slibpath))
-	if(inherits(success, 'try-error'))
-		warning("The internal dynlib could not be unloaded")
-
-	package_env$slibpath <- NULL
-	invisible(TRUE)
 }
-
-package_env <- new.env()

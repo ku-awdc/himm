@@ -1,6 +1,6 @@
 #' @keywords internal
 #' @import Rcpp
-#' @useDynLib himm, .registration = TRUE
+#/' @useDynLib himm, .registration = TRUE
 "_PACKAGE"
 
 ## usethis namespace: start
@@ -8,5 +8,5 @@
 NULL
 
 
-loadModule("test", TRUE)
-loadModule("himm", TRUE)
+#loadModule("test", TRUE)
+#loadModule("himm", TRUE)

@@ -16,24 +16,24 @@ int add_pointer(Himm* pointer)
   return himm_active.size();
 }
 
-void remove_pointer(int index)
+void remove_pointer(size_t pt_index)
 {
-  if(!verify_index(index)) Rcpp::stop("Index inactive");
-  himm_active[index-1] = false;
-  himm_pointers[index-1] = 0;
+  if(!verify_index(pt_index)) Rcpp::stop("Index inactive");
+  himm_active[pt_index-1L] = false;
+  himm_pointers[pt_index-1L] = 0L;
 }
 
-void show_pointer(int index)
+void show_pointer(size_t pt_index)
 {
-  if(!verify_index(index)) Rcpp::stop("Index inactive");
-  himm_pointers[index-1]->show();
+  if(!verify_index(pt_index)) Rcpp::stop("Index inactive");
+  himm_pointers[pt_index-1L]->show();
 }
 
-bool verify_index(const int index)
+bool verify_index(const size_t pt_index)
 {
-  if(index < 1L) return false;
-  if(index > himm_active.size()) return false;
-  return himm_active[index-1L];
+  if(pt_index < 1L) return false;
+  if(pt_index > himm_active.size()) return false;
+  return himm_active[pt_index-1L];
 }
 
 Rcpp::LogicalVector active_index()
@@ -42,8 +42,8 @@ Rcpp::LogicalVector active_index()
   return rv;
 }
 
-Himm* get_pointer(const int index)
+Himm* get_pointer(const size_t pt_index)
 {
-  if(!verify_index(index)) Rcpp::stop("Index inactive");
-  return himm_pointers[index-1L];
+  if(!verify_index(pt_index)) Rcpp::stop("Index inactive");
+  return himm_pointers[pt_index-1L];
 }
