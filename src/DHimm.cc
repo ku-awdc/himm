@@ -95,11 +95,11 @@ double DHimm::logDensity(double x, PDFType type,
   }
 
   // Set up parameter vectors:
-  const std::vector<const double> prv1 = { *parameters[0L] };
-  const std::vector<const double> beta_const = { *parameters[1L] };
-  const std::vector<const double> beta_freq = { *parameters[2L] };
-  const std::vector<const double> gamm = { *parameters[3L] };
-  const std::vector<const double> test_pars = { *parameters[4L], *parameters[5L] };
+  const std::vector<double> prv1 = { *parameters[0L] };
+  const std::vector<double> beta_const = { *parameters[1L] };
+  const std::vector<double> beta_freq = { *parameters[2L] };
+  const std::vector<double> gamm = { *parameters[3L] };
+  const std::vector<double> test_pars = { *parameters[4L], *parameters[5L] };
 
   // Set rate parameters:
   himm->setRates(prv1, beta_const, beta_freq, gamm);

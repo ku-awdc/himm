@@ -27,10 +27,10 @@ public:
   }
   */
   
-  virtual void setRates(const std::vector<const double> prv1, const std::vector<const double> beta_const,
-                        const std::vector<const double> beta_freq, const std::vector<const double> gamm) = 0;
+  virtual void setRates(const std::vector<double> prv1, const std::vector<double> beta_const,
+                        const std::vector<double> beta_freq, const std::vector<double> gamm) = 0;
   
-  virtual void setTestPars(const std::vector<const double> test_pars) = 0;
+  virtual void setTestPars(const std::vector<double> test_pars) = 0;
     
   virtual void calculate() = 0;
 

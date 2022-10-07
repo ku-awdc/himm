@@ -144,8 +144,8 @@ class HimmTemplate : public Himm
 
     }
 
-    void setRates(const std::vector<const double> prv1, const std::vector<const double> beta_const,
-                  const std::vector<const double> beta_freq, const std::vector<const double> gamm)
+    void setRates(const std::vector<double> prv1, const std::vector<double> beta_const,
+                  const std::vector<double> beta_freq, const std::vector<double> gamm)
     {
       // Ignore beta_freq for now
       m_p1 = prv1[0L];
@@ -154,7 +154,7 @@ class HimmTemplate : public Himm
       m_gamma = gamm[0L];
     }
 
-    void setTestPars(const std::vector<const double> test_pars)
+    void setTestPars(const std::vector<double> test_pars)
     {
       m_se = test_pars[0L];
       m_sp = test_pars[1L];
