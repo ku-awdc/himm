@@ -1,0 +1,317 @@
+---
+title: "A generic way of framing a multiple-state model"
+author: "Matt Denwood"
+date: "2022-10-20"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("DiagrammeR")
+```
+
+# Background
+
+Hidden Markov Models typically assume a single disease, with either binary states (most often Susceptible <-> Infected) or something more complicated such as Susceptible -> Latent -> Infected -> Recovered or whatever.  The assumption here is that progression through these 4 states is governed by a series of state change equations, which can be conceptualized as a matrix of probabilities where each row and column must sum to 1, but where individual cells may be zero.  For example (where rows are "from" states and columns are "to" states):
+
+```{r SEIR, echo=FALSE}
+state_change <- matrix("0", nrow=4, ncol=4, dimnames=replicate(2, c("S","E","I","R"), simplify=FALSE))
+state_change["S","E"] <- "beta(I)"
+state_change["S","S"] <- "1-beta(I)"
+state_change["E","I"] <- "alpha"
+state_change["E","E"] <- "1-alpha"
+state_change["I","R"] <- "gamma"
+state_change["I","I"] <- "1-gamma"
+state_change["R","R"] <- "1"
+state_change
+```
+
+This implies the following DAG:
+
+```{r dag_SEIR, echo = FALSE}
+grViz("
+ digraph mastitis_3_states{
+ 
+ 	  # Nodes
+	  node [shape = circle]
+	  S [label = 'S']
+	  E [label = 'E']
+	  I [label = 'I']
+	  R [label = 'R']
+	  
+	  S -> E
+	  E -> I
+	  I -> R
+ }
+ ")
+```
+
+As this is a HMM we also have to deal with detection probabilities corresponding to each state.  For a simple 2-state model, the probability of a positive test conditional on states S and I are typically 1-sp and se, respectively.  For more states, we must construct a vector of detection probabilities with length matching the number of states, for example:
+
+```{r echo=FALSE}
+detprob <- c(S="1-sp", E="se", I="se", R="1-sp")
+detprob
+```
+
+This implies the following DAG:
+
+```{r dag SEIR, echo = FALSE}
+grViz("
+ digraph mastitis_3_states{
+ 
+ 	  # Nodes
+	  node [shape = circle]
+	  S [label = 'S']
+	  E [label = 'E']
+	  I [label = 'I']
+	  R [label = 'R']
+
+ 	  # Nodes
+	  node [shape = square]
+	  tp [label = 'Test+']
+	  tn [label = 'Test-']
+
+	  S -> E
+	  E -> I
+	  I -> R
+
+	  S -> tn
+	  S -> tp
+	  E -> tp
+	  E -> tn
+	  I -> tp
+	  I -> tn
+	  R -> tn
+	  R -> tp
+ }
+ ")
+```
+Obviously this depends on the biology (exposed animals may have a lower sensitivity than infected, or whatever), but the equations can be modified as needed.
+
+All of this so far relates to a single disease process.  Our question is what happens when we have 2 (or more) independet disease processes, which are linked only by the fact that we use the same (non-differential) test for both diseases.  For example contagious mastitis caused by one group of pathogens, compared to environmental mastitis caused by another group of pathogens, both of which cause increased SCC.
+
+TODO: check literature to see if anyone has looked at multiple independent diseases before.
+
+
+# Model approaches
+
+## One disease at a time
+
+It is possible to construct two simple independent models for (1) contagious and (2) environmental mastitis.  For example:
+
+```{r dag ind, echo = FALSE}
+grViz("
+ digraph two_independent{
+ 
+ 	  # Nodes
+	  node [shape = circle, style=filled, fillcolor=blue]
+	  Se [label = 'S_e']
+	  Ie [label = 'I_e']
+
+	  node [shape = square, style=filled, fillcolor=blue]
+	  Tpe [label = 'Test+']
+	  Tne [label = 'Test-']
+
+	  node [shape = circle, style=filled, fillcolor=red]
+	  Sc [label = 'S_c']
+	  Ic [label = 'I_c']
+
+	  node [shape = square, style=filled, fillcolor=red]
+	  Tpc [label = 'Test+']
+	  Tnc [label = 'Test-']
+
+	  Se -> Ie
+	  Ie -> Se
+	  Sc -> Ic
+	  Ic -> Sc
+	  
+	  Se -> Tpe
+	  Se -> Tne
+	  Ie -> Tpe
+	  Ie -> Tne
+	  Sc -> Tpc
+	  Sc -> Tnc
+	  Ic -> Tpc
+	  Ic -> Tnc
+ }
+ ")
+```
+
+The obvious problem with this is that the test results are contaminated by the other disease, which effectively means that the within-model specificity for both diseases will be reduced (as the test may be positive for the other disease state, which is not in the model).
+
+## Two x two state models
+
+It is relatively straightforward to combine the two diseases into a single model, where they are linked only by the test outcome i.e.:
+
+
+```{r dag linked, echo = FALSE}
+grViz("
+ digraph two_linked{
+ 
+ 	  # Nodes
+	  node [shape = square]
+	  Tp [label = 'Test+']
+	  Tn [label = 'Test-']
+
+	  node [shape = circle, style=filled, fillcolor=blue]
+	  Se [label = 'S_e']
+	  Ie [label = 'I_e']
+
+	  node [shape = circle, style=filled, fillcolor=red]
+	  Sc [label = 'S_c']
+	  Ic [label = 'I_c']
+
+	  Se -> Ie
+	  Ie -> Se
+	  Sc -> Ic
+	  Ic -> Sc
+	  
+	  Se -> Tp
+	  Se -> Tn
+	  Ie -> Tp
+	  Ie -> Tn
+	  Sc -> Tp
+	  Sc -> Tn
+	  Ic -> Tp
+	  Ic -> Tn
+ }
+ ")
+```
+
+Notice that the state transition matrix is unchanged:  we still have two independent disease processes parameterised by:
+
+```{r ind_stateprobs, echo=FALSE}
+cat("Environmental:\n")
+state_change <- matrix("0", nrow=2, ncol=2, dimnames=replicate(2, c("S_e","I_e"), simplify=FALSE))
+state_change["S_e","I_e"] <- "beta_e(I_e)"
+state_change["S_e","S_e"] <- "1-beta_e(I_e)"
+state_change["I_e","S_e"] <- "gamma_e"
+state_change["I_e","I_e"] <- "1-gamma_e"
+state_change
+
+cat("\nContagious:\n")
+state_change <- matrix("0", nrow=2, ncol=2, dimnames=replicate(2, c("S_c","I_c"), simplify=FALSE))
+state_change["S_c","I_c"] <- "beta_c(I_c)"
+state_change["S_c","S_c"] <- "1-beta_c(I_c)"
+state_change["I_c","S_c"] <- "gamma_c"
+state_change["I_c","I_c"] <- "1-gamma_c"
+state_change
+```
+
+The trick is in the observation probabilities - rather than having two independent vectors of length 2, we now have an observation matrix with 2 rows and 2 columns, which we can parameterise assuming conditional independence of the test between diseases as:
+
+```{r echo=FALSE}
+detprob <- array(NA_character_, dim=c(2,2), dimnames=list(c("S_e","I_e"), c("S_c","I_c")))
+detprob[1,1] <- "1 - (Sp_e * Sp_c)"
+detprob[2,1] <- "1 - ((1-Se_e) * Sp_c)"
+detprob[1,2] <- "1 - (Sp_e * (1-Se_c))"
+detprob[2,2] <- "1 - ((1-Se_e) * (1-Se_c))"
+```
+
+(You can read these equations as 1 - the probability of getting a negative test from all diseases).
+
+This approach can conceptually be expanded to an arbitrary number of diseases each with an arbitrary number of disease states, without too much difficulty.
+
+
+## Four state model
+
+Another way to think about this is a single 4-state model, i.e.:
+
+```{r dag_4state, echo = FALSE}
+grViz("
+ digraph four_state{
+ 
+ 	  # Nodes
+	  node [shape = square]
+	  Tp [label = 'Test+']
+	  Tn [label = 'Test-']
+
+	  node [shape = circle]
+	  SeSc [label = 'S_e & S_c']
+	  IeSc [label = 'I_e & S_c']
+	  SeIc [label = 'S_e & I_c']
+	  IeIc [label = 'I_e & I_c']
+
+	  SeSc -> SeIc
+	  SeSc -> IeSc
+	  SeSc -> IeIc
+	  IeSc -> SeSc
+	  IeSc -> SeIc
+	  IeSc -> IeIc
+	  SeIc -> SeSc
+	  SeIc -> IeSc
+	  SeIc -> IeIc
+	  IeIc -> SeSc
+	  IeIc -> IeSc
+	  IeIc -> SeIc
+
+	  SeSc -> Tp
+	  SeSc -> Tn
+	  IeSc -> Tp
+	  IeSc -> Tn
+	  SeIc -> Tp
+	  SeIc -> Tn
+	  IeIc -> Tp
+	  IeIc -> Tn
+ }
+ ")
+```
+
+Now we have a 4x4 matrix of state change probabilities to worry about, rather than 2 independent sets of length-2 vectors.  However, we can make something that is mathematically identical to the independent disease approach by assuming that the diseases are still independent and simply multiplying the probabilities together:
+
+```{r comb_stateprobs, echo=FALSE}
+state_change <- matrix("0", nrow=4, ncol=4, dimnames=replicate(2, c("S_e & S_c","I_e & S_c","S_e & I_c", "I_e & I_c"), simplify=FALSE))
+state_change[1,1] <- "(1 - beta_e(I_e)) * (1 - beta_c(I_c))"
+state_change[1,2] <- "beta_e(I_e) * (1 - beta_c(I_c))"
+state_change[1,3] <- "(1 - beta_e(I_e)) * beta_c(I_c)"
+state_change[1,4] <- "beta_e(I_e) * beta_c(I_c)"
+state_change[2,1] <- "gamma_e * (1 - beta_c(I_c))"
+state_change[2,2] <- "(1-gamma_e) * (1 - beta_c(I_c))"
+state_change[2,3] <- "gamma_e * beta_c(I_c)"
+state_change[2,4] <- "(1-gamma_e) * beta_c(I_c)"
+state_change[3,1] <- "(1 - beta_e(I_e)) * gamma_c"
+state_change[3,2] <- "beta_e(I_e) * (1 - gamma_c)"
+state_change[3,3] <- "(1 - beta_e(I_e)) * gamma_c"
+state_change[3,4] <- "beta_e(I_e) * (1-gamma_c)"
+state_change[4,1] <- "gamma_e * gamma_c"
+state_change[4,2] <- "(1-gamma_e) * (1 - gamma_c)"
+state_change[4,3] <- "gamma_e * gamma_c"
+state_change[4,4] <- "(1-gamma_e) * (1-gamma_c)"
+state_change
+```
+
+(I think I got this right...)
+
+This time the observation probabilities are a length-4 vector, but if we make the same assumptions as above then the values are the same as for the 2x2 matrix:
+
+```{r echo=FALSE}
+detprob <- array(NA_character_, dim=c(4), dimnames=list(c("S_e & S_c","I_e & S_c","S_e & I_c", "I_e & I_c")))
+detprob[1] <- "1 - (Sp_e * Sp_c)"
+detprob[2] <- "1 - ((1-Se_e) * Sp_c)"
+detprob[3] <- "1 - (Sp_e * (1-Se_c))"
+detprob[4] <- "1 - ((1-Se_e) * (1-Se_c))"
+detprob
+```
+
+In this simplest case, the parameterisation of this 4-state model is exactly equivalent to the 2x2-state model above.  However, we could choose to parameterise it differently, for example having 4 independent observation probabilities rather than 2 sets of se and sp.  We could also add more complex transition probabilities, if for example the presence of contagious mastitis makes the animal more (or less) susceptible to environmental mastitits. However, this requires more parameters in the state change probabilities, which our data may not support.  This approach is also conceptually harder (although not impossible) to extend to an arbitrary number of diseases and/or an arbitrary number of states per disease.
+
+## Conclusions
+
+I prefer the 2x2-state model (which can be generalised to a DxS-state model) for two reasons:
+
+1.  It is much easier to conceptualise.
+2.  It is simpler to parameterise.
+
+However, we can also parameterise the 4-state model so that it is equivalent to the 2x2-state model, as shown above.
+
+# Implementation
+
+The DxS-state model can be implemented directly for (a) data simulation, (b) the explicit latent state model in JAGS, and (c) the integrating over latent states model in JAGS/C++.  However, it is not possible to implement this directly using the forward algorithm because the dependence between the two diseases must be accounted for.
+
+Instead, we can use the 4-state parameterisation, but I strongly prefer to constrain the paramerisation so that it is equivalent to the 2x2-state model as I have shown above.
+
+I have already implemented a Dx2-state data generation process that you can look at (?simulate_hmm).  I am working on the 4-state (using 2x2-state parameterisation) implementation of the forward algorithm (in C++) now.
+
+
