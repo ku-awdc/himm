@@ -15,6 +15,18 @@ simulate_basic(
   sensitivity = 0.8,
   specificity = 0.99
 )
+
+simulate_hmm(
+  N_animals = 100L,
+  N_time = 10L,
+  N_diseases = 2L,
+  p1 = 0.1,
+  beta_const = 0.05,
+  beta_freq = 0.02,
+  gamma = 0.08,
+  sensitivity = 0.8,
+  specificity = 0.99
+)
 }
 \arguments{
 \item{sp}{}

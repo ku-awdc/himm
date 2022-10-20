@@ -2,5 +2,6 @@
 
 export(load_module)
 export(simulate_basic)
+export(simulate_hmm)
 export(unload_module)
 import(Rcpp)
