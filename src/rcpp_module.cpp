@@ -1,6 +1,7 @@
 #include <Rcpp.h>
 
-#include "HimmWrapper.h"
+#include "ForwardTemplate.h"
+#include "HimmTemplate.h"
 #include "pointer_storage.h"
 
 template <class RcppModuleClassName>
@@ -43,12 +44,6 @@ RCPP_MODULE(himm){
     .property("pointer_index", &Himm_Nx5::getIndex, "Get z matrix")
     //    .property("states", &Simulation::GetStates, "Get the total for each state")
     ;
-
-  class_<HimmWrapper>("HimmWrapper")
-    .constructor("Constructor with no arguments")
-    .method("show", &HimmWrapper::show, "The show method")
-//    .property("states", &Simulation::GetStates, "Get the total for each state")
-  ;
 
 }
 
