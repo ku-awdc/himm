@@ -1,15 +1,4 @@
-######################################################################################################
-###
-###  This file is based on that in the rjags package (version 4-10) with minor modifications
-###  [configure stuff relating to modules removed as runjags installs within the package directory
-###  and minimum JAGS version requirement]
-###  Matthew Denwood, 24th February 2021
-###  Original file is Copyright (C) Martyn Plummer, licensed under GPL-2
-###
-######################################################################################################
-
-
-AC_INIT([runjags],[2])
+AC_INIT([himm],[4])
 
 if test -z "${R_HOME}"; then
    AC_MSG_ERROR("R_HOME is not defined")
@@ -27,7 +16,8 @@ PKG_CONFIG_OK="FALSE"
 AC_PATH_PROG([PKG_CONFIG], [pkg-config], [], [$PATH:/usr/local/bin])
 if test [ -n "${PKG_CONFIG}" ] ; then
    if `${PKG_CONFIG} --exists jags`; then
-       if `${PKG_CONFIG} --exists --atleast-version=3.0.0 jags`; then
+       if `${PKG_CONFIG} --exists --atleast-version=${PACKAGE_VERSION}.0.0 jags` &&
+          `${PKG_CONFIG} --exists --max-version=${PACKAGE_VERSION}.99.99 jags`; then
          JAGS_LIBS=`${PKG_CONFIG} --libs jags`
          JAGS_CFLAGS=`${PKG_CONFIG} --cflags jags`
          JAGS_LIBDIR=`${PKG_CONFIG} --variable libdir jags`
@@ -41,10 +31,10 @@ if test [ -n "${PKG_CONFIG}" ] ; then
          fi
       else
          jags_installed_version=`${PKG_CONFIG} --modversion jags`
-         AC_MSG_ERROR([pkg-config found JAGS ${jags_installed_version} but rjags requires JAGS >= 3.x.y])
+         AC_MSG_ERROR([pkg-config found JAGS ${jags_installed_version} but rjags requires JAGS ${PACKAGE_VERSION}.x.y])
       fi
    else 
-      AC_MSG_WARN([pkg-config file for jags unavailable])
+      AC_MSG_WARN([pkg-config file for jags ${PACKAGE_VERSION} unavailable])
       AC_MSG_WARN([Consider adding the directory containing `jags.pc`])
       AC_MSG_WARN([to the PKG_CONFIG_PATH environment variable])
    fi
@@ -177,14 +167,27 @@ AC_RUN_IFELSE(
    [AC_MSG_RESULT([link error])
     AC_MSG_ERROR([Runtime link error: See the INSTALL file for help])])
 # Now we can test
+AC_RUN_IFELSE(
+   [AC_LANG_SOURCE([
+      #include <version.h>
+      int main() { return JAGS_MAJOR == ${PACKAGE_VERSION} ? 0 : 1; }])],
+   [AC_MSG_RESULT([OK])],
+   [AC_MSG_RESULT([wrong version])
+    AC_MSG_ERROR([rjags requires JAGS version ${PACKAGE_VERSION}.x.y])])
 AC_LANG_POP()
 LDFLAGS=${OLDFLAGS}
 CXXFLAGS=${OCXXFLAGS}
 
+# Set location of modules
+
+JAGS_MODDIR=${JAGS_LIBDIR}/JAGS/modules-${PACKAGE_VERSION}
 
 AC_SUBST(JAGS_LIBS)
 AC_SUBST(JAGS_CFLAGS)
+AC_SUBST(JAGS_MODDIR)
 AC_SUBST(JAGS_RPATH)
 
 AC_CONFIG_FILES([src/Makevars])
+AC_OUTPUT
+AC_CONFIG_FILES([R/unix/zzz.R])
 AC_OUTPUT

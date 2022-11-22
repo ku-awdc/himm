@@ -11,12 +11,10 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 
-RcppExport SEXP _rcpp_module_boot_himm();
-RcppExport SEXP _rcpp_module_boot_test();
+RcppExport SEXP _rcpp_module_boot_himm_module();
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rcpp_module_boot_himm", (DL_FUNC) &_rcpp_module_boot_himm, 0},
-    {"_rcpp_module_boot_test", (DL_FUNC) &_rcpp_module_boot_test, 0},
+    {"_rcpp_module_boot_himm_module", (DL_FUNC) &_rcpp_module_boot_himm_module, 0},
     {NULL, NULL, 0}
 };
 

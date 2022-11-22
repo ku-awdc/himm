@@ -18,7 +18,7 @@ RcppModuleClassName* invalidate_default_constructor() {
 
 Rcpp::LogicalVector active_index();
 
-RCPP_MODULE(himm){
+RCPP_MODULE(himm_module){
 
 	using namespace Rcpp;
   
