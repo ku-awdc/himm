@@ -54,7 +54,6 @@ RCPP_MODULE(himm_module){
     .method("addData", &SimpleForward::addData, "The show method")
     .method("calculate", &SimpleForward::calculate, "The show method")
     .method("test", &SimpleForward::test, "The show method")
-    .method("obsprev", &SimpleForward::obsprev, "The show method")
     .property("log_density", &SimpleForward::logDensity, "Get z matrix")
     .property("pointer_index", &SimpleForward::getIndex, "Get z matrix")
     //    .property("states", &Simulation::GetStates, "Get the total for each state")

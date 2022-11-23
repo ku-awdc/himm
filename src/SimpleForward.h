@@ -1,19 +1,27 @@
 #include <Rcpp.h>
 #include <array>
+#include <math.h>
 
 #include "Himm.h"
 
 class SimpleForward : public Himm
 {
   private:
-    std::vector<std::vector<int>> m_data;
+    std::vector<bool> m_data;
+    std::vector<double> m_seprob;
+    std::vector<double> m_spprob;
+    /*
+    std::array<bool, 200L> m_data;
+    std::array<double, 200L> m_seprob;
+    std::array<double, 200L> m_spprob;
+    */
 
     double m_p1 = 0.1;
     double m_beta_const = 0.1;
     double m_gamma = 0.1;
 
-    double m_se = 0.99;
-    double m_sp = 0.99;
+    double m_se = -1.0;
+    double m_sp = -1.0;
 
     const size_t m_nP;
     const size_t m_nT;
@@ -23,11 +31,9 @@ class SimpleForward : public Himm
     SimpleForward(const int nP, const int nT) :
       m_nP(nP), m_nT(nT)
     {
-      m_data.resize(m_nP);
-      for(size_t i=0L; i<m_data.size(); ++i)
-      {
-        m_data[i].resize(m_nT);
-      }
+      m_data.resize(m_nP*m_nT);
+      m_seprob.resize(m_nP*m_nT);
+      m_spprob.resize(m_nP*m_nT);
     }
 
     void addData(Rcpp::IntegerMatrix data)
@@ -39,7 +45,7 @@ class SimpleForward : public Himm
       {
         for(int t=0L; t<m_nT; ++t)
         {
-          m_data[i][t] = data(i,t);
+          m_data[m_nT*i + t] = data(i,t) == 1L;
         }
       }
     }
@@ -60,27 +66,84 @@ class SimpleForward : public Himm
 
     void setTestPars(const std::vector<double> test_pars)
     {
-      m_se = test_pars[0L];
-      m_sp = test_pars[1L];
+      if(std::abs(m_se - test_pars[0L]) > 0.0001 || std::abs(m_sp - test_pars[1L]) > 0.0001)
+      {
+        m_se = test_pars[0L];
+        m_sp = test_pars[1L];
+
+        const double sp = std::log(m_sp);
+        const double sp1m = log1m(m_sp);
+        const double se = std::log(m_se);
+        const double se1m = log1m(m_se);
+
+        for(size_t i=0L; i<m_seprob.size(); ++i)
+        {
+          m_seprob[i] = m_data[i] ? se : se1m;
+          m_spprob[i] = m_data[i] ? sp1m : sp;
+        }
+
+      }
+    }
+
+    double log1m(const double p)
+    {
+      return std::log1p(-p);
+    }
+
+    double log_sum_exp(const double u, const double v)
+    {
+      const double m = std::max(u, v);
+      return m + std::log(std::exp(u - m) + std::exp(v - m));
     }
 
     void calculate()
     {
 
-      /*
-      const double sp = m_sp;
-      const double sp1m = 1.0 - m_sp;
-      const double se = m_se;
-      const double se1m = 1.0 - m_se;
-      */
+      const double p1 = std::log(m_p1);
+      const double p1m = log1m(m_p1);
+      const double be = std::log(m_beta_const);
+      const double be1m = log1m(m_beta_const);
+      const double ga = std::log(m_gamma);
+      const double ga1m = log1m(m_gamma);
 
       m_logdens = 0.0;
 
+      size_t i=0L;
       for(size_t p=0L; p<m_nP; ++p)
       {
         std::array<double, 2L> logalpha;
-        logalpha[0L] = std::log(1.0 - m_p1) + std::log(m_data[p][0L]==0L ? m_sp : (1.0 - m_sp));
-        logalpha[1L] = std::log(m_p1) + std::log(m_data[p][0L]==1L ? m_se : (1.0 - m_se));
+        logalpha[0L] = p1m + m_spprob[i];
+        logalpha[1L] = p1 + m_seprob[i];
+
+        for(size_t t=1L; t<m_nT; ++t)
+        {
+          i++;
+          const std::array<double, 2L> lastlogalpha = logalpha;
+
+          {
+            const double acc0 = lastlogalpha[0L] + be1m + m_spprob[i];
+            const double acc1 = lastlogalpha[1L] + ga + m_spprob[i];
+            logalpha[0L] = log_sum_exp(acc0, acc1);
+          }
+
+          {
+            const double acc0 = lastlogalpha[0L] + be + m_seprob[i];
+            const double acc1 = lastlogalpha[1L] + ga1m + m_seprob[i];
+            logalpha[1L] = log_sum_exp(acc0, acc1);
+          }
+
+        }
+        i++;
+
+        m_logdens += log_sum_exp(logalpha[0L], logalpha[1L]);
+      }
+
+      /*
+      for(size_t p=0L; p<m_nP; ++p)
+      {
+        std::array<double, 2L> logalpha;
+        logalpha[0L] = std::log(1.0-m_p1) + std::log(m_data[p*m_nT] ? (1.0 - m_sp) : m_sp);
+        logalpha[1L] = std::log(m_p1) + std::log(m_data[p*m_nT] ? m_se : (1.0 - m_se));
 
         for(size_t t=1L; t<m_nT; ++t)
         {
@@ -88,21 +151,22 @@ class SimpleForward : public Himm
 
           {
             std::array<double, 2L> accumulator;
-            accumulator[0L] = lastlogalpha[0L] + std::log(1.0 - m_beta_const) + std::log(m_data[p][t]==0L ? m_sp : (1.0 - m_sp));
-            accumulator[1L] = lastlogalpha[1L] + std::log(m_gamma) + std::log(m_data[p][t]==0L ? m_sp : (1.0 - m_sp));
+            accumulator[0L] = lastlogalpha[0L] + std::log(1.0 - m_beta_const) + std::log(m_data[p*m_nT+t] ? (1.0 - m_sp) : m_sp);
+            accumulator[1L] = lastlogalpha[1L] + std::log(m_gamma) + std::log(m_data[p*m_nT+t] ? (1.0 - m_sp) : m_sp);
             logalpha[0L] = std::log(std::exp(accumulator[0L]) + std::exp(accumulator[1L]));
           }
 
           {
             std::array<double, 2L> accumulator;
-            accumulator[0L] = lastlogalpha[0L] + std::log(m_beta_const) + std::log(m_data[p][t]==1L ? m_se : (1.0 - m_se));
-            accumulator[1L] = lastlogalpha[1L] + std::log(1.0 - m_gamma) + std::log(m_data[p][t]==1L ? m_se : (1.0 - m_se));
+            accumulator[0L] = lastlogalpha[0L] + std::log(m_beta_const) + std::log(m_data[p*m_nT+t] ? m_se : (1.0 - m_se));
+            accumulator[1L] = lastlogalpha[1L] + std::log(1.0 - m_gamma) + std::log(m_data[p*m_nT+t] ? m_se : (1.0 - m_se));
             logalpha[1L] = std::log(std::exp(accumulator[0L]) + std::exp(accumulator[1L]));
           }
         }
 
         m_logdens += std::log(std::exp(logalpha[0L]) + std::exp(logalpha[1L]));
       }
+      */
 
       /*
   for(a in 1:Nani){
@@ -170,17 +234,6 @@ class SimpleForward : public Himm
 
       return logDensity();
 
-    }
-
-    double obsprev(int tp)
-    {
-      double tot=0.0;
-      for(int i=0L; i<m_nP; ++i)
-      {
-        tot += m_data[i][tp-1L];
-      }
-
-      return tot/m_nP;
     }
 
     ~SimpleForward()

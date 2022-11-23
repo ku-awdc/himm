@@ -1,29 +1,35 @@
 library('himm')
+library('runjags')
+library('tidyverse')
 
 # FIX: set seed in the jags code
 
-simest <- function(i){
+Nani <- 20L
+Ntime <- 20L
 
-  cat("Running iteration ", i, "...\n")
+Zeros <- rep(0, Nani)
 
-  set.seed(i)
+fwd <- himm:::SimpleForward$new(Nani,Ntime)
+Index <- fwd$pointer_index
 
-  # from simulate_basic help
-  data <- simulate_basic(
-    N_animals = 100L,
-    N_time = 10L,
-    p1 = 0.1,
-    beta_const = 0.05,
-    beta_freq = 0.0,
-    gamma = 0.08,
-    sensitivity = 0.8,
-    specificity = 0.99
-  )
+cppfwd <- "
+model{
 
-  Nani <- nrow(data)
-  Obs <- data
+  Index ~ dhimm(p1, beta, bfreq, gamma, se, sp)
+  p1 ~ dbeta(1,1)
+  beta ~ dbeta(1,1)
+  bfreq <- 0
+  gamma ~ dbeta(1,1)
 
-  mod <- "
+  se ~ dbeta(50, 50)
+  sp ~ dbeta(90, 10)
+
+  #data# Index
+  #monitor# p1, beta, gamma
+}
+"
+
+fwdmod <- "
 model{
 
   for(a in 1:Nani){
@@ -63,8 +69,8 @@ model{
   beta ~ dbeta(1,1)
   gamma ~ dbeta(1,1)
 
-  se <- 0.9
-  sp <- 0.99
+  se ~ dbeta(50, 50)
+  sp ~ dbeta(90, 10)
 
   #data# Nani, Ntime, Obs, Zeros
   #monitor# beta, gamma, p1
@@ -72,15 +78,7 @@ model{
 }
 "
 
-  Zeros <- rep(0, Nani)
-  res_forward <- run.jags(mod)
-  res_forward
-
-
-
-  # indicator model
-
-  mod_liv <- "
+mod_liv <- "
 
 model{
 
@@ -107,29 +105,56 @@ model{
   beta ~ dbeta(1,1)
   gamma ~ dbeta(1,1)
 
-  se <- 0.9
-  sp <- 0.99
+  se ~ dbeta(50, 50)
+  sp ~ dbeta(90, 10)
 
   #data# Nani, Ntime, Obs
   #monitor# beta, gamma, p1
 }
 "
+
+tidyfy <- function(results, model){
+  summary(results) |>
+    as.data.frame() |>
+    rownames_to_column("Parameter") |>
+    mutate(Model = model) |>
+    mutate(Time = as.numeric(results$timetaken, units="secs")) |>
+    select(Model, Parameter, Median, Lower95, Upper95, SSeff, Time) |>
+    mutate(SSperSec = SSeff / Time)
+}
+
+
+simest <- function(i){
+
+  cat("Running iteration ", i, "...\n")
+
+  set.seed(i)
+
+  # from simulate_basic help
+  data <- simulate_basic(
+    N_animals = Nani,
+    N_time = Ntime,
+    p1 = 0.1,
+    beta_const = 0.05,
+    beta_freq = 0.0,
+    gamma = 0.08,
+    sensitivity = 0.5,
+    specificity = 0.9
+  )
+
+  Nani <- nrow(data)
+  Obs <- data
+
+  fwd$addData(Obs)
+
+  res_forward <- run.jags(fwdmod)
   res_liv <- run.jags(mod_liv)
-
-  tidyfy <- function(results, model){
-    summary(results) |>
-      as.data.frame() |>
-      rownames_to_column("Parameter") |>
-      mutate(Model = model) |>
-      mutate(Time = as.numeric(results$timetaken, units="secs")) |>
-      select(Model, Parameter, Median, Lower95, Upper95, SSeff, Time) |>
-      mutate(SSperSec = SSeff / Time)
-  }
-
+  res_cppfwd <- run.jags(cppfwd)
 
   bind_rows(
     tidyfy(res_liv, "JAGS_LIV"),
-    tidyfy(res_forward, "JAGS_Zeros")
+    tidyfy(res_forward, "JAGS_Zeros"),
+    tidyfy(res_cppfwd, "Cpp_fwd"),
   ) |>
     mutate(Dataset = i) |>
     arrange(Parameter)
@@ -137,10 +162,10 @@ model{
 }
 
 
-1:50 |>
+1 |>
   as.list() |>
   lapply(simest) |>
   bind_rows() ->
 all_results
 
-
+all_results
