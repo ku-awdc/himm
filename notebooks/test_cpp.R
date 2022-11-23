@@ -1,5 +1,6 @@
 library("tidyverse")
 library("runjags")
+library("himm")
 
 Nani <- 100
 Ntime <- 5
@@ -28,6 +29,19 @@ h1$log_density
 h1$addData(Obs)
 h1$calculate()
 h1$log_density
+
+
+h2 <- himm:::SimpleForward$new(Nani,Ntime)
+h2$pointer_index
+h2$calculate()
+h2$log_density
+
+h2$addData(Obs)
+h2$calculate()
+h2$log_density
+
+h1$test(0.1)
+h2$test(0.1)
 
 h1$zs
 h1$test(h1$obsprev(1))
@@ -60,17 +74,19 @@ model{
   Index ~ dhimm(p1, bconst, bfreq, g, se, sp)
   p1 ~ dbeta(1,1)
   bconst ~ dbeta(1,1)
-  bfreq ~ dbeta(1,1)
+  bfreq <- 0
   g ~ dbeta(1,1)
-  se ~ dbeta(10,1)
-  sp ~ dbeta(20,1)
+  se <- 0.9 #~ dbeta(10,1)
+  sp <- 0.99 #~ dbeta(20,1)
 
   #data# Index
   #monitor# p1, bconst, bfreq, g, se, sp, Index
 }
 "
 
-Index <- 1
+himm:::active_index()
+
+Index <- 2
 library(rjags)
 library(runjags)
 res <- run.jags(m)

@@ -1,6 +1,7 @@
 #include <Rcpp.h>
 
 #include "ForwardTemplate.h"
+#include "SimpleForward.h"
 #include "HimmTemplate.h"
 #include "pointer_storage.h"
 
@@ -42,6 +43,20 @@ RCPP_MODULE(himm_module){
     .property("zs", &Himm_Nx5::getZs, "Get z matrix")
     .property("log_density", &Himm_Nx5::logDensity, "Get z matrix")
     .property("pointer_index", &Himm_Nx5::getIndex, "Get z matrix")
+    //    .property("states", &Simulation::GetStates, "Get the total for each state")
+    ;
+
+  using SimpleForward = SimpleForward;
+  class_<SimpleForward>("SimpleForward")
+    DISABLE_DEFAULT_CONSTRUCTOR()
+    .constructor<int, int>("Constructor with 2 arguments")
+    .method("show", &SimpleForward::show, "The show method")
+    .method("addData", &SimpleForward::addData, "The show method")
+    .method("calculate", &SimpleForward::calculate, "The show method")
+    .method("test", &SimpleForward::test, "The show method")
+    .method("obsprev", &SimpleForward::obsprev, "The show method")
+    .property("log_density", &SimpleForward::logDensity, "Get z matrix")
+    .property("pointer_index", &SimpleForward::getIndex, "Get z matrix")
     //    .property("states", &Simulation::GetStates, "Get the total for each state")
     ;
 
