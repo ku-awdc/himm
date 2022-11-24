@@ -162,10 +162,10 @@ simest <- function(i){
 }
 
 
-1 |>
+1:50 |>
   as.list() |>
   lapply(simest) |>
   bind_rows() ->
 all_results
 
-all_results
+all_results |> print()

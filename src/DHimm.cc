@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include <JRmath.h>
+//#include <R.h>
 
 #include "DHimm.h"
 #include "Himm.h"
@@ -36,26 +37,14 @@ namespace himm {
 DHimm::DHimm()
     : ScalarDist("dhimm", 6L, DIST_SPECIAL)
 {}
-  
+
 
 bool DHimm::checkParameterValue (vector<double const *> const &parameters) const
 {
-  // Can only do this when we know the pointer index:
-  if(m_pointer_index==0L) return true;
-  
-  // Otherwise check the pointer storage:
-  const bool valid = verify_index(m_pointer_index);
-  if(!valid)
-  {
-    printf("INVALID POINTER INDEX\n");
-    return JAGS_NAN;
-    // throw("Invalid pointer index (response value)");
-  }  
-  // And get the pointer:
-  Himm* himm = get_pointer(m_pointer_index);    
-  
-  // Then TODO checks:
-  
+  // Note: the C++ object is re-used between models, so pointer index may vary
+
+  // TODO checks based on parameter values alone:
+
   return true;
 }
 
@@ -68,25 +57,26 @@ double DHimm::logDensity(double x, PDFType type,
   if(m_pointer_index == 0L)
   {
     m_pointer_index = xint;
-    printf("SETTING POINTER INDEX\n");
+    printf("SETTING POINTER INDEX to %i\n", xint);
   }
-  
+
   // Check the pointer hasn't changed:
   if(xint != m_pointer_index)
   {
-    printf("CHANGED POINTER INDEX\n");
-    return JAGS_NAN;
+    printf("CHANGED POINTER INDEX FROM %i To %i\n", m_pointer_index, xint);
+    m_pointer_index = xint;
+    // return JAGS_NAN;
   }
   // Check the pointer storage:
   const bool valid = verify_index(m_pointer_index);
   if(!valid)
   {
-    printf("INVALID POINTER INDEX\n");
+    printf("INVALID POINTER INDEX %i\n", m_pointer_index);
     return JAGS_NAN;
     // throw("Invalid pointer index (response value)");
-  }  
+  }
   // Get the pointer:
-  Himm* himm = get_pointer(m_pointer_index);    
+  Himm* himm = get_pointer(m_pointer_index);
   // Unless we have already reported who we are, do that:
   if(!m_reported)
   {
