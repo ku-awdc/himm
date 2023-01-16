@@ -2,7 +2,10 @@ library('himm')
 library('runjags')
 library('tidyverse')
 
-# FIX: set seed in the jags code
+# FIX: same seed as in jags code.
+# FIX: include Stan functions in R
+# FIX: Source each stan functions if they will not run
+
 
 Nani <- 20L
 Ntime <- 20L
@@ -169,8 +172,3 @@ simest <- function(i){
 all_results
 
 all_results |> print()
-
-
-all_results %>%
-  group_by(Model, Parameter) %>%
-  dplyr::summarize(Mean = mean(Time, na.rm=TRUE))
